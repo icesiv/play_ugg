@@ -5,6 +5,7 @@ import random
 
 import constant
 import pandas as pd
+from datetime import datetime
 
 
 def get_file(filename):
@@ -23,6 +24,11 @@ def wait(max, min=1):
 
 def current_time():
     return time.time()
+
+def current_time_text():
+    now = datetime.now()
+    date_time = now.strftime("%m-%d-%Y %H-%M")
+    return date_time
 
 
 def save_to_excel(new_data):
