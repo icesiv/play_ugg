@@ -5,7 +5,6 @@ from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 import pandas as pd
 
-# define Python user-defined exceptions
 class InvalidItemException(Exception):
     "Item not found"
     pass
@@ -44,12 +43,12 @@ def main():
     def set_order(page, item_code, size, qty):
         full_url = constant.get_url("search") + item_code
         page.goto(full_url)
-        page.wait_for_selector('.product-item')
-        
 
-        # if item not found
-        # raise InvalidItemException
-
+        try:
+            page.wait_for_selector('.product-item')
+        except:
+          raise InvalidItemException
+          
         page.click('.enter-qty')
         helpers.wait(2, 3)
         
@@ -63,23 +62,35 @@ def main():
         for index, value in enumerate(sizes):
             if(float(value) == size):
                 input_fields = page.locator(f"(//input[@class='el-input__inner'])[{index + 1 }]")
-                input_fields.fill(qty)
+                input_fields.fill(str(qty))
                 found = True
+
+                try:
+                    qty_available = page.query_selector(f".el-loading-mask+ .product-wrap .stripe .item:nth-child({index + 1 })")
+                    print("qty_available", qty_available.inner_text())
+                except:
+                    print("qty_available -")
+
+
                 print(f"ordering {item_code} size: {size} ->  {qty} pcs.")
+
+                helpers.wait(1, 2)
                 break
 
+        button = page.locator("//div[@class='header']/following-sibling::button[1]");
+        button.click()
+        
         if not found:
             raise InvalidSizeException
 
-        # helpers.wait(2, 3)
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, slow_mo=50)
-        # browser = p.chromium.launch()
+        # browser = p.chromium.launch(headless=False, slow_mo=50)
+        browser = p.chromium.launch()
         page = browser.new_page()
    
         page.set_viewport_size({"width": 1280, "height": 1080})
-        # page.route("**/*", block_aggressively)
+        page.route("**/*", block_aggressively)
 
         # # login page
         print("<" * 30)

@@ -1,5 +1,5 @@
 # RESOURCE_EXCLUSTIONS = ['image', 'stylesheet', 'media', 'font', 'other']
-RESOURCE_EXCLUSTIONS = ['image', 'stylesheet', 'media', 'font']
+RESOURCE_EXCLUSTIONS = ['image', 'media', 'font']
 
 EXCEL_INPUT_FILE_PATH = 'excel_files/input.xlsx'
 EXCEL_OUTPUT_FILE_PATH = 'excel_files/logs/log_'

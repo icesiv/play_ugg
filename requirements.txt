@@ -1,4 +1,3 @@
-openpyxl
 playwright
 beautifulsoup4
 pandas

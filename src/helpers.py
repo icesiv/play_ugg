@@ -2,9 +2,6 @@ import json
 import os
 import time
 import random
-
-import constant
-import pandas as pd
 from datetime import datetime
 
 
@@ -29,29 +26,3 @@ def current_time_text():
     now = datetime.now()
     date_time = now.strftime("%m-%d-%Y %H-%M")
     return date_time
-
-
-def save_to_excel(new_data):
-    new_df = pd.DataFrame(new_data)
-
-    try:
-        existing_df = pd.read_excel(constant.EXCEL_FILE_PATH)
-        combined_df = pd.concat([existing_df, new_df], ignore_index=True)
-    except FileNotFoundError:
-        combined_df = new_df
-
-    combined_df.to_excel(constant.EXCEL_FILE_PATH, index=False)
-
-    print(
-        f'Data has been appended to {constant.EXCEL_FILE_PATH}')
-
-
-def load_items(column_name, file_name):
-    df = pd.read_excel(file_name)
-
-    if column_name in df.columns:
-        column_data = df[column_name].tolist()
-        return (column_data)
-    else:
-        print(f"Column '{column_name}' not found in the Excel file.")
-        return None
