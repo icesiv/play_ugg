@@ -103,7 +103,7 @@ def confirm_order(page,cur_order_id):
     page.goto(constant.get_url("cart"))
 
     try:
-        page.wait_for_selector("(//div[@class='summary'])[1]")
+        page.wait_for_selector("(//header[@class='section-title'])[3]")
     except:
         print("Time out on cart page")
         raise Exception
