@@ -1,4 +1,6 @@
 {
   "USERNAME": "",
-  "PASSWORD": ""
+  "PASSWORD": "",
+  "SCHEDULE_DELAY": 60,
+  "ORDER_QUEUE": 1
 }
