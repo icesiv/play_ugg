@@ -2,5 +2,6 @@
   "USERNAME": "",
   "PASSWORD": "",
   "SCHEDULE_DELAY": 60,
+  "ORDER_KEY": "MM-INSTANT-",
   "ORDER_QUEUE": 1
 }
