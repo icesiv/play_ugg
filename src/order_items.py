@@ -13,6 +13,16 @@ from datetime import datetime
 from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 
+
+class InvalidItemException(Exception):
+    "Item not found"
+    pass
+
+class InvalidSizeException(Exception):
+    "size not found for that Item"
+    pass
+
+
 def load_config():
     with open(get_file('../config.json')) as f:
         return json.load(f)
@@ -43,15 +53,6 @@ def current_time_text():
     now = datetime.now()
     date_time = now.strftime("%m-%d-%Y %H-%M")
     return date_time
-
-class InvalidItemException(Exception):
-    "Item not found"
-    pass
-
-class InvalidSizeException(Exception):
-    "size not found for that Item"
-    pass
-
     
 def log_item(new_data,filename):
     new_df = pd.DataFrame(new_data)
@@ -159,12 +160,13 @@ def main():
         
         log_file = constant.EXCEL_OUTPUT_FILE_PATH + current_time_text()
         
-        page = login(p)
+        # page = login(p)
         # Now logged in
 
-        cur_order_id = configs[] 
+        cur_order_id = configs['ORDER_QUEUE'] 
 
-        print()
+
+        print(cur_order_id)
 
         print("Test End")
         sys.exit()
