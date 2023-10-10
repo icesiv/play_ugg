@@ -1,35 +1,43 @@
-import constant
+import os
 import sys
+import json
+import time
+import random
 
 import schedule
-import time
+import constant
 
-from playwright.sync_api import sync_playwright
-from bs4 import BeautifulSoup
 import pandas as pd
 
-import json
-import os
-import random
 from datetime import datetime
-
-
-def get_file(filename):
-    return os.path.join(os.path.dirname(__file__), filename)
-
+from playwright.sync_api import sync_playwright
+from bs4 import BeautifulSoup
 
 def load_config():
     with open(get_file('../config.json')) as f:
         return json.load(f)
 
+def load_items_list():
+    try:
+        df = pd.read_excel(constant.EXCEL_INPUT_FILE_PATH)
+        items = df.to_dict(orient='records')
+        
+        if (len(items) < 1):
+            print("No item row in file file.")
+            raise Exception
+        
+    except:
+        print("Please check the input excel file.")
+        sys.exit()
+
+    return items
+
+def get_file(filename):
+    return os.path.join(os.path.dirname(__file__), filename)
 
 def wait(max, min=1):
     random_seconds = random.uniform(min, max)
     time.sleep(random_seconds)
-
-
-def current_time():
-    return time.time()
 
 def current_time_text():
     now = datetime.now()
@@ -61,6 +69,10 @@ def block_aggressively(route):
         route.abort()
     else:
         route.continue_()
+
+# -----------------------------------------------------
+# set_order Function
+# -----------------------------------------------------
 
 def set_order(page, item_code, size, qty):
     full_url = constant.get_url("search") + item_code
@@ -99,51 +111,63 @@ def set_order(page, item_code, size, qty):
             wait(1, 2)
             break
 
-    button = page.locator("//div[@class='header']/following-sibling::button[1]");
+    button = page.locator("//div[@class='header']/following-sibling::button[1]")
     button.click()
     
     if not found:
         raise InvalidSizeException
 
-def main():
-    with sync_playwright() as p:
-        try:
-            df = pd.read_excel(constant.EXCEL_INPUT_FILE_PATH)
-            items = df.to_dict(orient='records')
-            
-            if (len(items) < 1):
-                print("No item row in file file.")
-                sys.exit()
-            
-        except:
-            print("Please check the input excel file.")
-            sys.exit()
-        
-        
-        
-        log_file = constant.EXCEL_OUTPUT_FILE_PATH + current_time_text()
+# -----------------------------------------------------
+# login Function
+# -----------------------------------------------------
 
+def login(playwright):
+    # browser = playwright.chromium.launch(headless=False, slow_mo=50)
+    browser = playwright.chromium.launch()
+    page = browser.new_page()
+    # page.set_viewport_size({"width": 1280, "height": 1080})
+    page.route("**/*", block_aggressively)
 
-        # browser = p.chromium.launch(headless=False, slow_mo=50)
-        browser = p.chromium.launch()
-        page = browser.new_page()
-   
-        page.set_viewport_size({"width": 1280, "height": 1080})
-        page.route("**/*", block_aggressively)
-
-        # # login page
+    while True:
+        ## login page
         print("<" * 30)
         print("login process start")
-        page.goto(constant.get_url('login'), timeout=120000)
-        page.fill('input#userNameId', configs['USERNAME'])
-        page.fill('input#userPasswordId', configs['PASSWORD'])
-        page.click("button[type=submit]")
+        
+        try:
+            page.goto(constant.get_url('login'))
+            page.fill('input#userNameId', configs['USERNAME'])
+            page.fill('input#userPasswordId', configs['PASSWORD'])
+            page.click("button[type=submit]")
+            page.wait_for_selector('div.ugg_message')
+            
+            print("login success")
+            print(">" * 30)
+            
+            return page
+        except:
+            print("login timeout..")
 
-        page.wait_for_selector('div.ugg_message')
+        print("trying to login again")
 
-        print("login success")
-        print(">" * 30)
+# -----------------------------------------------------
+# Main Function
+# -----------------------------------------------------
+
+def main():
+    with sync_playwright() as p:
+        items = load_items_list()
+        
+        log_file = constant.EXCEL_OUTPUT_FILE_PATH + current_time_text()
+        
+        page = login(p)
         # Now logged in
+
+        cur_order_id = configs[] 
+
+        print()
+
+        print("Test End")
+        sys.exit()
         
         for item in items:
             error = ""
@@ -174,11 +198,8 @@ def main():
 
         browser.close()
 
-# ________________________________________________________________________________
-configs = load_config()
-
 def start_order():
-    start_time = current_time()
+    start_time = time.time()
 
     print("Starting .. ")
     print("-." * 30)
@@ -188,15 +209,17 @@ def start_order():
     print("-." * 30)
     print("Done .. ")
 
-    time_difference = current_time() - start_time
+    time_difference = time.time() - start_time
     print(f'Scraping time: %.2f seconds.' % time_difference)
     
     print("\n\n\n\n")
 
+# ________________________________________________________________________________
+configs = load_config()
 
 if __name__ == "__main__":
     start_order()
-    print(f"Autometically Srart ording in {configs['SCHEDULE_DELAY']} minutes")
+    print(f"Automatically Start Ordering in {configs['SCHEDULE_DELAY']} minutes")
     print("-" * 40)
 
     schedule.every(configs['SCHEDULE_DELAY']).minutes.do(start_order)
