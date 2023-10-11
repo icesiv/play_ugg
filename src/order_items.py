@@ -114,21 +114,33 @@ def confirm_order(page,cur_order_id):
     if(page.locator("//input[@value='IMMED']").is_checked()):
         print("Schedule for immediate delivery")
     else:
-        print("ToDo: Setting for immediate delivery")
-        # page.click("//input[@value='IMMED']")
-        # page.locator("//input[@value='IMMED']").click() 
-        # page.locator("(//div[@class='el-message-box__btns']//button)[2]").click()
-    wait(2, 2)
+        print("ToDo: Setting for immediate delivery")        
+        page.click("(//label[@role='radio'])[1]")
+
+        wait(2, 3)
+        btns = page.locator(".el-message-box__btns")
+        
+        yes_button = btns.locator('button:has-text("Yes")')
+        yes_button.click()
+        wait(3, 4)   
     
-    #  REVIEW ORDER
-    button_review = page.locator("(//button[@class='el-button el-button--primary'])[3]")
+    # REVIEW ORDER
+    button_review = page.locator("(//span[text()='Review Order'])[1]")
     button_review.click()
-    wait(3, 5)
+    wait(3, 4)
+    btns = page.locator("//div[@class='product-container']/following-sibling::div[1]")
+    yes_button = btns.locator('button:has-text("Continue")')
+    yes_button.click()
+    wait(3, 4)
     
     #  CONFIRM ORDER
-    button_conf = page.locator("/html/body/div[5]/div/div[2]/div[1]/div[3]/div/button")
-    button_conf.click()
+    btns = page.locator("//div[@class='order-notes']/following-sibling::div[1]")
+    yes_button = btns.locator('button:has-text("Place Order")')
+    yes_button.click()
     wait(3, 5)
+
+    #  Place ORDER
+    # //span[text()='Place Order']
 
     # Bot has to place order
     wait(30, 50)
@@ -226,7 +238,7 @@ def set_order(page, item_code, size, qty):
 def login(browser):
     while True:
         page = browser.new_page()
-        # page.set_viewport_size({"width": 1280, "height": 1080})
+        page.set_viewport_size({"width": 1280, "height": 1080})
         page.route("**/*", block_aggressively)
         
         ## login page
