@@ -107,14 +107,22 @@ def confirm_order(page,cur_order_id):
     except:
         print("Time out on cart page")
         raise Exception
-
+            
+    try:
+        page.wait_for_selector(".products-wrap", timeout=2000 )
+        print("Products are added to cart")
+    except:
+        print("============================ logs ===========================")
+        print("Error: No product added to cart")
+        print("============================================================")
+        sys.exit()
+     
     page.fill("//input[@placeholder='PO# Required']", configs["ORDER_KEY"] + str(cur_order_id))
     
-    # Bot Must click on schedule for immediate delivery and click yes on “are you sure”
     if(page.locator("//input[@value='IMMED']").is_checked()):
         print("Schedule for immediate delivery")
     else:
-        print("ToDo: Setting for immediate delivery")        
+        print("Setting for immediate delivery")        
         page.click("(//label[@role='radio'])[1]")
 
         wait(2, 3)
@@ -128,25 +136,31 @@ def confirm_order(page,cur_order_id):
     button_review = page.locator("(//span[text()='Review Order'])[1]")
     button_review.click()
     wait(3, 4)
-    btns = page.locator("//div[@class='product-container']/following-sibling::div[1]")
-    yes_button = btns.locator('button:has-text("Continue")')
-    yes_button.click()
-    wait(3, 4)
     
+    selector = '.dialog-header'
+    
+    try:
+        element = page.wait_for_selector(selector, timeout=10000)
+        inner_text = element.inner_text()
+        if(inner_text=="Review Order"):
+            print("just click order")
+    except:
+        btns = page.locator("//div[@class='product-container']/following-sibling::div[1]")
+        yes_button = btns.locator('button:has-text("Continue")')
+        yes_button.click()
+        wait(3, 4)
+        
     #  CONFIRM ORDER
     btns = page.locator("//div[@class='order-notes']/following-sibling::div[1]")
     yes_button = btns.locator('button:has-text("Place Order")')
     yes_button.click()
-    wait(3, 5)
-
-    #  Place ORDER
-    # //span[text()='Place Order']
-
-    # Bot has to place order
-    wait(30, 50)
-
     
-
+    print("Order placed.\nWaiting 30s for safty. DO NOT Close")
+    wait(30, 35)
+    
+    print("============================ Success ===========================")
+    print("Order Complete")
+    print("================================++++============================")
 
 # -----------------------------------------------------
 # prepare_order Function
@@ -271,8 +285,8 @@ def main():
         
         log_file = constant.EXCEL_OUTPUT_FILE_PATH + "log_" + current_time_text()
         
-        browser = p.chromium.launch(headless=False, slow_mo=50)
-        # browser = p.chromium.launch()
+        # browser = p.chromium.launch(headless=False, slow_mo=50)
+        browser = p.chromium.launch()
     
         page = login(browser)
         # Now logged in
@@ -280,7 +294,7 @@ def main():
         cur_order_id = new_order_queue() 
         print(f"Preparing new order. ID: {cur_order_id}")
 
-        # prepare_order(page, items, cur_order_id, log_file)
+        prepare_order(page, items, cur_order_id, log_file)
         
         print(f"Placing order ID: {cur_order_id}")
         confirm_order(page,cur_order_id)
