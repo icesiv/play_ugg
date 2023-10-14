@@ -22,7 +22,6 @@ class InvalidSizeException(Exception):
     "size not found for that Item"
     pass
 
-
 def load_config():
     try:
         with open(get_file(constant.CONFIG_PATH)) as f:
@@ -61,7 +60,9 @@ def load_items_list():
 def get_file(filename):
     return os.path.join(os.path.dirname(__file__), filename)
 
-def wait(max, min=1):
+def wait(min , max =-1):
+    if max == -1:
+        max = min
     random_seconds = random.uniform(min, max)
     time.sleep(random_seconds)
 
@@ -99,7 +100,6 @@ def block_aggressively(route):
 # -----------------------------------------------------
 
 def confirm_order(page,cur_order_id):
-    # Search Item
     page.goto(constant.get_url("cart"))
 
     try:
@@ -117,8 +117,6 @@ def confirm_order(page,cur_order_id):
         print("============================================================")
         sys.exit()
      
-    page.fill("//input[@placeholder='PO# Required']", configs["ORDER_KEY"] + str(cur_order_id))
-    
     if(page.locator("//input[@value='IMMED']").is_checked()):
         print("Schedule for immediate delivery")
     else:
@@ -132,6 +130,8 @@ def confirm_order(page,cur_order_id):
         yes_button.click()
         wait(3, 4)   
     
+    page.fill("//input[@placeholder='PO# Required']", configs["ORDER_KEY"] + str(cur_order_id))
+    
     # REVIEW ORDER
     button_review = page.locator("(//span[text()='Review Order'])[1]")
     button_review.click()
@@ -143,8 +143,9 @@ def confirm_order(page,cur_order_id):
         element = page.wait_for_selector(selector, timeout=10000)
         inner_text = element.inner_text()
         if(inner_text=="Review Order"):
-            print("just click order")
+            print("All item avlable")
     except:
+        print("Some item QTY not avlable")
         btns = page.locator("//div[@class='product-container']/following-sibling::div[1]")
         yes_button = btns.locator('button:has-text("Continue")')
         yes_button.click()
@@ -152,15 +153,16 @@ def confirm_order(page,cur_order_id):
         
     #  CONFIRM ORDER
     btns = page.locator("//div[@class='order-notes']/following-sibling::div[1]")
-    yes_button = btns.locator('button:has-text("Place Order")')
-    yes_button.click()
+    Place_button = btns.locator('button:has-text("Place Order")')
+    Place_button.click()
     
-    print("Order placed.\nWaiting 30s for safty. DO NOT Close")
-    wait(30, 35)
+    print("Waiting 15s for safty. DO NOT CLOSE")
+    wait(15)
     
-    print("============================ Success ===========================")
-    print("Order Complete")
-    print("================================++++============================")
+    # Submitted Successfully
+    #  ToDO Get Order ID
+    
+    print("================= Order Complete =================")
 
 # -----------------------------------------------------
 # prepare_order Function
@@ -198,18 +200,23 @@ def prepare_order(page, items, cur_order_id, log_file):
 # -----------------------------------------------------
 
 def set_order(page, item_code, size, qty):
-    # Search Item
     full_url = constant.get_url("search") + item_code
     page.goto(full_url)
+    
+    try:
+        page.wait_for_selector("(//span[@class='nav-item__title pointer']//span)[2]")
+    except:
+        print(f"Time Out on search item {item_code}")
+        raise InvalidItemException
 
     try:
         page.wait_for_selector('.product-item')
     except:
         raise InvalidItemException
         
-    page.click('.enter-qty')
-    wait(1, 2)
+    page.click("//div[@class='el-tooltip enter-qty']")
     
+    wait(5)
     # Get Size
     html = page.inner_html("(//div[@class='size-table']//div)[1]")
     soup = BeautifulSoup(html, 'html.parser')
@@ -224,22 +231,23 @@ def set_order(page, item_code, size, qty):
             current_qty  = input_fields.input_value()
             found = True
             
-            try:
-                input_fields.fill(str(qty + int(current_qty)))
-                qty_available = page.query_selector(f".el-loading-mask+ .product-wrap .stripe .item:nth-child({index + 1 })")
-                print(f"current QTY: {current_qty}, available:")
-                print(f"ordering {item_code} size: {size}")
-                print(f"current QTY: {current_qty} pcs. New QTY: {qty} pcs. available: {qty_available.inner_text()}")
-            except:
-                print("qty_available -")
-
-
-
-            wait(2, 3)
+            input_fields.fill(str(qty + int(current_qty)))
+            wait(1)
+            cloce_btn = page.locator("//div[@class='header']/following-sibling::button[1]")
+            cloce_btn.click()
+            
+            # try:
+            #     qty_available = page.query_selector(f".el-loading-mask+ .product-wrap .stripe .item:nth-child({index + 1 })")
+            #     qty_available.inner_text()
+            #     print(f"Available: {qty_available.inner_text()}")
+            # except:
+            #     print("qty_available -")
+            
+            print(f"Adding to cart {item_code} size: {size}")
+            print(f"prv QTY: {current_qty} + New QTY: {qty} = {int(current_qty) + qty} pcs")
             break
-
-    button = page.locator("//div[@class='header']/following-sibling::button[1]")
-    button.click()
+        
+    wait(3)
     print("-" * 30)
     
     if not found:
@@ -249,18 +257,14 @@ def set_order(page, item_code, size, qty):
 # login Function
 # -----------------------------------------------------
 
-def login(browser):
+def login(page):
     while True:
-        page = browser.new_page()
-        page.set_viewport_size({"width": 1280, "height": 1080})
-        page.route("**/*", block_aggressively)
-        
         ## login page
         print("<" * 30)
         print("login process start")
         
         try:
-            page.goto(constant.get_url('login'))
+            page.goto(constant.get_url('login'), timeout=220000)
             page.fill('input#userNameId', configs['USERNAME'])
             page.fill('input#userPasswordId', configs['PASSWORD'])
             page.click("button[type=submit]")
@@ -272,37 +276,77 @@ def login(browser):
             return page
         except:
             print("login timeout..")
-
+            
         print("trying to login again")
 
 # -----------------------------------------------------
 # Main Function
 # -----------------------------------------------------
 
+def clear_cart(page):
+    print("Checking Cart...")
+    page.goto(constant.get_url("cart"))
+
+    try:
+        page.wait_for_selector("(//header[@class='section-title'])[3]")
+    except:
+        print("Time out on cart page")
+            
+    try:
+        page.wait_for_selector(".products-wrap", timeout=2000 )
+        print("Products are added to cart")
+    except:
+        print("No product added to cart")
+        print("-" * 20)
+        return True
+     
+   
+    print("Clearing Cart")        
+    page.click(" (//button[contains(@class,'el-button title-font')])[2]")
+
+    wait(2)
+    btns = page.locator(".el-message-box__btns")
+    
+    yes_button = btns.locator('button:has-text("Yes")')
+    yes_button.click()
+    wait(1)   
+     
+    print("Cart Empty")  
+    print("-" * 20)
+    
+# -----------------------------------------------------
+# Main Function
+# -----------------------------------------------------
+
 def main():
     with sync_playwright() as p:
-        items = load_items_list()
-        
-        log_file = constant.EXCEL_OUTPUT_FILE_PATH + "log_" + current_time_text()
-        
+        # browser = p.chromium.launch(headless=False)
         # browser = p.chromium.launch(headless=False, slow_mo=50)
         browser = p.chromium.launch()
+       
+        page = browser.new_page()
+        page.set_viewport_size({"width": 1280, "height": 1080})
+        # page.route("**/*", block_aggressively)
+
+ 
+        items = load_items_list()
+        log_file = constant.EXCEL_OUTPUT_FILE_PATH + "log_" + current_time_text()
     
-        page = login(browser)
+        page = login(page)
         # Now logged in
+        
+        # Clear items from cart
+        clear_cart(page)
 
         cur_order_id = new_order_queue() 
-        print(f"Preparing new order. ID: {cur_order_id}")
-
         prepare_order(page, items, cur_order_id, log_file)
         
-        print(f"Placing order ID: {cur_order_id}")
+        wait(2)
+        
+        print(f"Placing order : {configs['ORDER_KEY']}{cur_order_id}")
         confirm_order(page,cur_order_id)
 
-
         browser.close()
-        # print("Test End")
-        # sys.exit()
 
 def start_order():
     start_time = time.time()
