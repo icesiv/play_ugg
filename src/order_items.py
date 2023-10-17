@@ -90,7 +90,9 @@ def log_item(new_data,filename):
         combined_df.to_excel(filename+".xlsx", index=False)
 
 def block_aggressively(route):
-    if (route.request.resource_type in constant.RESOURCE_EXCLUSTIONS):
+    RESOURCE_EXCLUSTIONS = ['image', 'font']
+    
+    if (route.request.resource_type in RESOURCE_EXCLUSTIONS):
         route.abort()
     else:
         route.continue_()
@@ -152,17 +154,21 @@ def confirm_order(page,cur_order_id):
         wait(3, 4)
         
     #  CONFIRM ORDER
-    btns = page.locator("//div[@class='order-notes']/following-sibling::div[1]")
-    Place_button = btns.locator('button:has-text("Place Order")')
-    Place_button.click()
+    try:
+        btns = page.locator("//div[@class='order-notes']/following-sibling::div[1]")
+        Place_button = btns.locator('button:has-text("Place Order")')
+        Place_button.click()
+        
+        print("Waiting 15s for safty. DO NOT CLOSE")
+        wait(15)
+        print("================= Order Complete =================")
+    except:
+        print("============================= x =============================")
+        print("Items in cart are not available. Will try to order next time.")
+        print("============================= x =============================")
     
-    print("Waiting 15s for safty. DO NOT CLOSE")
-    wait(15)
-    
-    # Submitted Successfully
     #  ToDO Get Order ID
     
-    print("================= Order Complete =================")
 
 # -----------------------------------------------------
 # prepare_order Function
@@ -203,8 +209,11 @@ def set_order(page, item_code, size, qty):
     full_url = constant.get_url("search") + item_code
     page.goto(full_url)
     
+    # wait(4,6)
+    wait(2)
+    
     try:
-        page.wait_for_selector("(//span[@class='nav-item__title pointer']//span)[2]")
+        page.wait_for_selector("(//span[@class='nav-item__title pointer']//span)[2]", timeout=220000)
     except:
         print(f"Time Out on search item {item_code}")
         raise InvalidItemException
@@ -216,7 +225,8 @@ def set_order(page, item_code, size, qty):
         
     page.click("//div[@class='el-tooltip enter-qty']")
     
-    wait(5)
+    wait(3)
+    # wait(6)
     # Get Size
     html = page.inner_html("(//div[@class='size-table']//div)[1]")
     soup = BeautifulSoup(html, 'html.parser')
@@ -226,28 +236,22 @@ def set_order(page, item_code, size, qty):
 
     # Enter QTY
     for index, value in enumerate(sizes):
-        if(float(value) == size):
+        if(value == str(size)):
             input_fields = page.locator(f"(//input[@class='el-input__inner'])[{index + 1 }]")
             current_qty  = input_fields.input_value()
             found = True
             
             input_fields.fill(str(qty + int(current_qty)))
-            wait(1)
+            # wait(1)
             cloce_btn = page.locator("//div[@class='header']/following-sibling::button[1]")
             cloce_btn.click()
-            
-            # try:
-            #     qty_available = page.query_selector(f".el-loading-mask+ .product-wrap .stripe .item:nth-child({index + 1 })")
-            #     qty_available.inner_text()
-            #     print(f"Available: {qty_available.inner_text()}")
-            # except:
-            #     print("qty_available -")
-            
+              
             print(f"Adding to cart {item_code} size: {size}")
             print(f"prv QTY: {current_qty} + New QTY: {qty} = {int(current_qty) + qty} pcs")
             break
         
-    wait(3)
+    # wait(3)
+    wait(1)
     print("-" * 30)
     
     if not found:
@@ -309,7 +313,7 @@ def clear_cart(page):
     
     yes_button = btns.locator('button:has-text("Yes")')
     yes_button.click()
-    wait(1)   
+    wait(3)   
      
     print("Cart Empty")  
     print("-" * 20)
@@ -326,16 +330,14 @@ def main():
        
         page = browser.new_page()
         page.set_viewport_size({"width": 1280, "height": 1080})
-        # page.route("**/*", block_aggressively)
+        page.route("**/*", block_aggressively)
 
  
         items = load_items_list()
         log_file = constant.EXCEL_OUTPUT_FILE_PATH + "log_" + current_time_text()
     
         page = login(page)
-        # Now logged in
         
-        # Clear items from cart
         clear_cart(page)
 
         cur_order_id = new_order_queue() 
@@ -352,12 +354,8 @@ def start_order():
     start_time = time.time()
 
     print("Starting .. ")
-    print("-." * 30)
 
     main()
-
-    print("-." * 30)
-    print("Done .. ")
 
     time_difference = time.time() - start_time
     print(f'Scraping time: %.2f seconds.' % time_difference)
@@ -377,11 +375,6 @@ if __name__ == "__main__":
     while True:
         rs = schedule.idle_seconds()
         rm = rs // 60
-       
-        # user_input = input("\nPress 'q' and Enter to stop the process: ")
-        # if user_input.strip().lower() == 'q':
-        #     print("Stopping the process...")
-        #     break
         
         sys.stdout.write(f"\rNext call in {int(rm)}:{int(rs-(configs['SCHEDULE_DELAY']*rm))}")
         sys.stdout.flush()
