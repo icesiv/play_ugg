@@ -250,12 +250,12 @@ def set_order(page, item_code, size, qty):
             print(f"prv QTY: {current_qty} + New QTY: {qty} = {int(current_qty) + qty} pcs")
             break
         
-    # wait(3)
+    if not found:
+        print(f"For {item_code} size {size} not found.")
+        raise InvalidSizeException
+
     wait(1)
     print("-" * 30)
-    
-    if not found:
-        raise InvalidSizeException
 
 # -----------------------------------------------------
 # login Function
