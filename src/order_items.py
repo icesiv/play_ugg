@@ -97,6 +97,30 @@ def block_aggressively(route):
     else:
         route.continue_()
 
+def format_float_string(value):
+  value = float(value)
+  if value < 10:
+    return f"0{value:.1f}"
+  else:
+    return f"{value:.1f}"
+
+def format_int_string(value):
+  value = int(value)
+  if value < 10:
+    return f"0{value}"
+  else:
+    return f"{value}"
+
+def is_float(string):
+  try:
+    float(string)
+    return True
+  except ValueError:
+    return False
+
+def is_int(string):
+  return string.isdigit()
+
 # -----------------------------------------------------
 # confirm_order Function
 # -----------------------------------------------------
@@ -169,7 +193,6 @@ def confirm_order(page,cur_order_id):
     
     #  ToDO Get Order ID
     
-
 # -----------------------------------------------------
 # prepare_order Function
 # -----------------------------------------------------
@@ -178,14 +201,14 @@ def prepare_order(page, items, cur_order_id, log_file):
     for item in items:
         error = ""
         try:
-            set_order(page, item['SKU'], item['SIZE'], item['QTY'])
+          set_order(page, item['SKU'], str(item['SIZE']), int(item['QTY']))
         except InvalidItemException:
             error = (f"{item['SKU']} not found.")
         except InvalidSizeException:
             error = (f"For {item['SKU']} size {item['SIZE']} not found.")
         except:
             error = (f"Exception thrown. error item {item['SKU']}.")
-
+        
         data = {
                 "SKU": item['SKU'],
                 "SIZE": item['SIZE'],
@@ -196,6 +219,9 @@ def prepare_order(page, items, cur_order_id, log_file):
 
         if error:
             data["status"] = "ERROR :" + error 
+            print("\n" + "x" * 30)
+            print(data["status"])
+            print("x" * 30 + "\n" )
         else:
             data["status"] = f"Success.. {data['ORDER_ID']}"
             
@@ -204,8 +230,25 @@ def prepare_order(page, items, cur_order_id, log_file):
 # -----------------------------------------------------
 # set_order Function
 # -----------------------------------------------------
+def clean_size_txt(s):
+    if is_int(s):
+        return format_int_string(s)
+    if is_float(s):
+        return format_float_string(s)
+    return s
 
 def set_order(page, item_code, size, qty):
+    try:
+        code_part = item_code.split("_")
+        if(len(code_part) > 1):
+            item_code = code_part[0]
+            size = code_part[1]
+    except:
+        print(f"Invalid format SKU: {item_code}")
+        raise InvalidItemException
+    
+    size = clean_size_txt(size)
+    
     full_url = constant.get_url("search") + item_code
     page.goto(full_url)
     
@@ -219,7 +262,7 @@ def set_order(page, item_code, size, qty):
         raise InvalidItemException
 
     try:
-        page.wait_for_selector('.product-item')
+        page.wait_for_selector('.product-item', timeout=10000)
     except:
         raise InvalidItemException
         
@@ -227,31 +270,33 @@ def set_order(page, item_code, size, qty):
     
     wait(3)
     # wait(6)
+    
     # Get Size
     html = page.inner_html("(//div[@class='size-table']//div)[1]")
     soup = BeautifulSoup(html, 'html.parser')
     size_elements = soup.find_all('div', class_='item')
-    sizes = [size.text.strip() for size in size_elements]
+    sizes = [s.text.strip() for s in size_elements]
+   
     found = False
-
+    
     # Enter QTY
     for index, value in enumerate(sizes):
-        if(value == str(size)):
+        if(value == size):
             input_fields = page.locator(f"(//input[@class='el-input__inner'])[{index + 1 }]")
             current_qty  = input_fields.input_value()
             found = True
             
             input_fields.fill(str(qty + int(current_qty)))
-            # wait(1)
+            page.keyboard.press("Tab")
+            wait(1)
             cloce_btn = page.locator("//div[@class='header']/following-sibling::button[1]")
             cloce_btn.click()
               
             print(f"Adding to cart {item_code} size: {size}")
-            print(f"prv QTY: {current_qty} + New QTY: {qty} = {int(current_qty) + qty} pcs")
+            print(f"{current_qty}(prv) + {qty}(new) = total {int(current_qty) + qty} pcs")
             break
         
     if not found:
-        print(f"For {item_code} size {size} not found.")
         raise InvalidSizeException
 
     wait(1)
@@ -268,7 +313,7 @@ def login(page):
         print("login process start")
         
         try:
-            page.goto(constant.get_url('login'), timeout=220000)
+            page.goto(constant.get_url('login'), timeout=280000)
             page.fill('input#userNameId', configs['USERNAME'])
             page.fill('input#userPasswordId', configs['PASSWORD'])
             page.click("button[type=submit]")
@@ -322,44 +367,40 @@ def clear_cart(page):
 # Main Function
 # -----------------------------------------------------
 
-def main():
-    with sync_playwright() as p:
-        # browser = p.chromium.launch(headless=False)
-        # browser = p.chromium.launch(headless=False, slow_mo=50)
-        browser = p.chromium.launch()
-       
-        page = browser.new_page()
-        page.set_viewport_size({"width": 1280, "height": 1080})
-        page.route("**/*", block_aggressively)
-
- 
-        items = load_items_list()
-        log_file = constant.EXCEL_OUTPUT_FILE_PATH + "log_" + current_time_text()
-    
-        page = login(page)
-        
-        clear_cart(page)
-
-        cur_order_id = new_order_queue() 
-        prepare_order(page, items, cur_order_id, log_file)
-        
-        wait(2)
-        
-        print(f"Placing order : {configs['ORDER_KEY']}{cur_order_id}")
-        confirm_order(page,cur_order_id)
-
-        browser.close()
-
 def start_order():
     start_time = time.time()
-
     print("Starting .. ")
-
-    main()
-
-    time_difference = time.time() - start_time
-    print(f'Scraping time: %.2f seconds.' % time_difference)
     
+    try:
+        with sync_playwright() as p:
+            # browser = p.chromium.launch(headless=False)
+            # browser = p.chromium.launch(headless=False, slow_mo=50)
+            browser = p.chromium.launch()
+        
+            page = browser.new_page()
+            page.set_viewport_size({"width": 1280, "height": 800})
+            # # page.route("**/*", block_aggressively)
+            
+            page = login(page)
+            
+            items = load_items_list()
+            log_file = constant.EXCEL_OUTPUT_FILE_PATH + "log_" + current_time_text()
+           
+            clear_cart(page)
+
+            cur_order_id = new_order_queue() 
+            prepare_order(page, items, cur_order_id, log_file)
+            
+            print(f"Placing order : {configs['ORDER_KEY']}{cur_order_id}")
+            confirm_order(page,cur_order_id)
+
+            browser.close()
+    except Exception as e:
+        print(e)
+        print("Error logged.")
+        
+    time_difference = time.time() - start_time
+    print(f'Scraping time: %.2f seconds.' % time_difference)   
     print("\n\n\n\n")
 
 # ________________________________________________________________________________
